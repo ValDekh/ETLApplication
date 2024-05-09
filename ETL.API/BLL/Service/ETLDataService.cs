@@ -18,9 +18,9 @@ namespace ETL.API.BLL.Service
             _repository = repository;
         }
 
-        public async Task ProcessCsvFileAsync(string filePath)
+        public async Task ProcessCsvFileAsync(IFormFile file)
         {
-            using var reader = new StreamReader(filePath);
+            using var reader = new StreamReader(file.OpenReadStream());
             using var csv = new CsvReader(reader, CultureInfo.InvariantCulture);
 
             csv.Context.RegisterClassMap<ETLDataMap>();

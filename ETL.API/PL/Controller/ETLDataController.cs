@@ -15,14 +15,18 @@ namespace ETL.API.PL.Controller
         }
 
         [HttpPost]
-        public async Task<IActionResult> ProcessCsvFile([FromBody] string filePath)
+        public async Task<IActionResult> ProcessCsvFile(IFormFile file)
         {
-            await _service.ProcessCsvFileAsync(filePath);
-            return Ok();
+            if (file == null || file.Length == 0)
+            {
+                return BadRequest("No file uploaded.");
+            }
 
+            await _service.ProcessCsvFileAsync(file);
+            return Ok();
         }
 
-        [HttpGet("location-with-highest-average-tip")]
+            [HttpGet("location-with-highest-average-tip")]
         public async Task<IActionResult> GetLocationWithHighestAverageTip()
         {
             var result = await _service.GetLocationWithHighestAverageTipAsync();
