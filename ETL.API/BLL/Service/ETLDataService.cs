@@ -24,30 +24,64 @@ namespace ETL.API.BLL.Service
             using var csv = new CsvReader(reader, CultureInfo.InvariantCulture);
 
             csv.Context.RegisterClassMap<ETLDataMap>();
-            var records = csv.GetRecords<ETLData>();
-
-            foreach (var record in records)
-            {
-                record.StoreAndFwdFlag = record.StoreAndFwdFlag?.Trim();
-
-                // Check if the record already exists in the database.
-                var existingRecord = await _context.TripData
-                    .FirstOrDefaultAsync(r => r.Id == record.Id); // Replace 'Id' with the appropriate unique identifier for your records.
-
-                if (existingRecord != null)
+            var records = csv.GetRecords<ETLData>()
+                .Select(p =>
                 {
-                    // If the record exists, update it.
-                    _context.Entry(existingRecord).CurrentValues.SetValues(record);
-                }
-                else
-                {
-                    // If the record does not exist, add it.
-                    _context.TripData.Add(record);
-                }
-            }
+                    if (string.IsNullOrEmpty(p.StoreAndFwdFlag))
+                    {
+                        p.StoreAndFwdFlag = null;
+                    }
+                    p.StoreAndFwdFlag = p.StoreAndFwdFlag?.Trim();
 
-            // Save changes to the database.
-            await _context.SaveChangesAsync();
+                    // Convert 'N' to 'No' and 'Y' to 'Yes'
+                    if (p.StoreAndFwdFlag == "N")
+                    {
+                        p.StoreAndFwdFlag = "No";
+                    }
+                    else if (p.StoreAndFwdFlag == "Y")
+                    {
+                        p.StoreAndFwdFlag = "Yes";
+                    }
+
+                    // Convert from EST to UTC
+                    p.TpepPickupDatetime = TimeZoneInfo.ConvertTimeToUtc(p.TpepPickupDatetime, TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time"));
+                    p.TpepDropoffDatetime = TimeZoneInfo.ConvertTimeToUtc(p.TpepDropoffDatetime, TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time"));
+
+                    return p;
+                })
+                .ToList();
+            await _repository.AddETLDataAsync(records);
+        }
+
+        public async Task<object> GetLocationWithHighestAverageTipAsync()
+        {
+            return await _repository.GetLocationWithHighestAverageTipAsync();
+        }
+
+        public async Task<List<ETLData>> GetTop100LongestFaresAsync()
+        {
+            return await _repository.GetTop100LongestFaresAsync();
+        }
+
+        public async Task<List<ETLData>> GetTop100LongestFaresByTimeAsync()
+        {
+            return await _repository.GetTop100LongestFaresByTimeAsync();
+        }
+
+        public async Task<List<ETLData>> SearchByPULocationIdAsync(int puLocationId)
+        {
+            return await _repository.SearchByPULocationIdAsync(puLocationId);
+        }
+
+        public async Task<List<ETLData>> HandleDuplicatesAsync()
+        {
+            var duplicates = await _repository.IdentifyAndRemoveDuplicatesAsync();
+
+            using var writer = new StreamWriter("duplicates.csv");
+            using var csv = new CsvWriter(writer, CultureInfo.InvariantCulture);
+            await csv.WriteRecordsAsync(duplicates);
+
+            return duplicates;
         }
     }
 }

@@ -9,11 +9,12 @@ namespace ETL.API.DAL
         {
         }
 
-        public DbSet<ETLData> TripData { get; set; }
+        public DbSet<ETLData> ETLData { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            modelBuilder.Entity<ETLData>().ToTable("ETLData");
+            modelBuilder.Entity<ETLData>().ToTable("ETLData")
+                 .HasIndex(p => new { p.PULocationID, p.TipAmount });
         }
     }
 }
